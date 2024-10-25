@@ -40,3 +40,29 @@ a {
     color-scheme: dark;
   }
 }
+.table-fixed {
+  width: 100%;
+  /* Makes the table take the full width */
+  table-layout: fixed;
+  /* Ensures that the table layout is fixed */
+}
+
+.table-fixed th,
+.table-fixed td {
+  overflow: hidden;
+  /* Prevents overflow */
+  text-overflow: ellipsis;
+  /* Adds ellipsis for overflow text */
+  white-space: nowrap;
+  /* Prevents text from wrapping */
+}
+
+.table-fixed th {
+  width: 25%;
+  /* Adjust column widths as needed */
+}
+
+.table-fixed td {
+  width: 25%;
+  /* Adjust column widths as needed */
+}

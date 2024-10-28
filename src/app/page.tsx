@@ -1,5 +1,6 @@
 "use client";
-import axios from "axios";
+import dayjs from "dayjs";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -13,12 +14,18 @@ import {
   Table,
 } from "reactstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { FaPlay } from "react-icons/fa";
+import { BsFillTrashFill } from "react-icons/bs";
 
 interface Song {
   id: string;
+  img: string;
   title: string;
   artist: { id: string; name: string };
-  album: { id: string; title: string };
+  album: { id: string; title: string; cover_medium: string };
+  steam: string;
+  create_dt: Date;
+  link: string;
 }
 
 interface Playlist {
@@ -110,6 +117,7 @@ export default function Home() {
       const updatedPlaylist = {
         id: song.id,
         title: song.title,
+        img: song.album.cover_medium,
         artist: {
           id: song.artist.id,
           name: song.artist.name,
@@ -118,6 +126,8 @@ export default function Home() {
           id: song.album.id,
           title: song.album.title,
         },
+        steam: song.link,
+        create_dt: new Date(),
       };
 
       try {
@@ -161,7 +171,9 @@ export default function Home() {
       }
     }
   };
-
+  const handleStreamClick = (streamUrl: string) => {
+    window.open(streamUrl, "_blank");
+  };
   useEffect(() => {
     fetchPlaylists();
   }, []);
@@ -191,21 +203,50 @@ export default function Home() {
                 Search Songs
               </Button>
 
-              <Table className="table-fixed" striped>
+              <Table className="table-fixed" striped responsive>
                 <thead>
                   <tr>
+                    <th>Cover</th>
                     <th>Title</th>
                     <th>Artist</th>
                     <th>Album</th>
+                    <th>Add Date</th>
+                    <th>Link</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {playlist.songs.map((song) => (
                     <tr key={song.id}>
+                      <td>
+                        <img
+                          src={song.img || "/default-image.png"}
+                          alt="Girl in a jacket"
+                          width="50"
+                          height="50"
+                          style={{ objectFit: "cover" }}
+                        ></img>
+                      </td>
                       <td>{song.title}</td>
                       <td>{song.artist?.name || "Unknown Artist"}</td>
                       <td>{song.album?.title || "Unknown Album"}</td>
+                      <td>{dayjs(song.create_dt).format("DD/MM/YYYY")}</td>
+                      <td>
+                        {/* {song.steam} */}
+
+                        <Button
+                          color="primary"
+                          onClick={() => handleStreamClick(song.steam)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <FaPlay size={16} />
+                        </Button>
+                      </td>
+
                       <td>
                         <Button
                           color="danger"
@@ -213,7 +254,7 @@ export default function Home() {
                             removeFromPlaylist(playlist._id, song.id)
                           }
                         >
-                          Remove Song
+                          <BsFillTrashFill size={16} />
                         </Button>
                       </td>
                     </tr>

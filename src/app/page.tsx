@@ -1,5 +1,4 @@
 "use client";
-import dayjs from "dayjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -12,10 +11,10 @@ import {
   ListGroup,
   ListGroupItem,
   Table,
+  ButtonGroup,
 } from "reactstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaPlay } from "react-icons/fa";
-import { BsFillTrashFill } from "react-icons/bs";
+import { BsMusicNoteList } from "react-icons/bs";
 
 interface Song {
   id: string;
@@ -37,17 +36,11 @@ interface Playlist {
 export default function Home() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [isModalGetSongOpen, setIsModalGetSongOpen] = useState<boolean>(false);
-  const [query, setQuery] = useState("");
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(
-    null
-  );
+
   const [isModalAddPlaylistOpen, setIsModalAddPlaylistOpen] =
     useState<boolean>(false);
   const [addPlaylistName, setAddPlaylistName] = useState("");
 
-  const toggleModal = () => setIsModalGetSongOpen(!isModalGetSongOpen);
   const toggleAddPlaylistModal = () =>
     setIsModalAddPlaylistOpen(!isModalAddPlaylistOpen);
 
@@ -57,30 +50,10 @@ export default function Home() {
       const response = await fetch("http://localhost:3001/playlists");
       const data = await response.json();
       // Assuming data is already in the desired format
+      console.log(data);
       setPlaylists(data);
     } catch (error) {
       console.error("Error fetching playlists:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const searchSongs = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:3001/songs/search?q=${query}`
-      );
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setSongs(data);
-      } else if (data && Array.isArray(data.data)) {
-        setSongs(data.data);
-      } else {
-        setSongs([]);
-      }
-    } catch (error) {
-      console.error("Error fetching songs:", error);
     } finally {
       setLoading(false);
     }
@@ -112,68 +85,21 @@ export default function Home() {
     }
   };
 
-  const addToPlaylist = async (song: Song) => {
-    if (selectedPlaylist) {
-      const updatedPlaylist = {
-        id: song.id,
-        title: song.title,
-        img: song.album.cover_medium,
-        artist: {
-          id: song.artist.id,
-          name: song.artist.name,
-        },
-        album: {
-          id: song.album.id,
-          title: song.album.title,
-        },
-        steam: song.link,
-        create_dt: new Date(),
-      };
+  const deletePlaylist = async (playlistId: string) => {
+    if (!confirm("Are you sure you want to delete this playlist?")) return;
 
-      try {
-        await fetch(
-          `http://localhost:3001/playlists/${selectedPlaylist._id}/add-song`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updatedPlaylist),
-          }
-        );
-        fetchPlaylists();
-        toggleModal(); // Close the modal after adding
-      } catch (error) {
-        console.error("Error updating playlist:", error);
-      }
+    try {
+      await fetch(`http://localhost:3001/playlists/${playlistId}`, {
+        method: "DELETE",
+      });
+      fetchPlaylists();
+    } catch (error) {
+      console.error("Error remove playlist:", error);
+    } finally {
+      fetchPlaylists();
     }
   };
-  const removeFromPlaylist = async (
-    selectedPlaylist: string,
-    songId: string
-  ) => {
-    console.log(selectedPlaylist, JSON.stringify({ songId }));
-    if (selectedPlaylist) {
-      try {
-        await fetch(
-          `http://localhost:3001/playlists/${selectedPlaylist}/remove-song`, // Update endpoint as necessary
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ songId }), // Sending the song ID to remove
-          }
-        );
-        fetchPlaylists(); // Refresh the playlist after removing
-      } catch (error) {
-        console.error("Error removing song:", error);
-      }
-    }
-  };
-  const handleStreamClick = (streamUrl: string) => {
-    window.open(streamUrl, "_blank");
-  };
+
   useEffect(() => {
     fetchPlaylists();
   }, []);
@@ -183,129 +109,77 @@ export default function Home() {
   return (
     <>
       <div style={{ padding: "20px" }}>
-        <h1>Music Playlists 🎵</h1>
-        <Button color="primary" onClick={toggleAddPlaylistModal}>
+        <h1 style={{ textAlign: "center" }}>
+          Music Playlists <BsMusicNoteList />
+        </h1>
+        <Button color="primary" className="mb-3">
           Add Playlist
         </Button>
         {playlists.length === 0 ? (
           <p>No playlists found.</p>
         ) : (
-          playlists.map((playlist) => (
-            <div key={playlist._id} style={{ marginBottom: "20px" }}>
-              <h2>{playlist.name}</h2>
-              <Button
-                onClick={() => {
-                  setSelectedPlaylist(playlist);
-                  toggleModal();
-                }}
-                color="info"
-              >
-                Search Songs
-              </Button>
-
-              <Table className="table-fixed" striped responsive>
-                <thead>
-                  <tr>
-                    <th>Cover</th>
-                    <th>Title</th>
-                    <th>Artist</th>
-                    <th>Album</th>
-                    <th>Add Date</th>
-                    <th>Link</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {playlist.songs.map((song) => (
-                    <tr key={song.id}>
-                      <td>
-                        <img
-                          src={song.img || "/default-image.png"}
-                          alt="Girl in a jacket"
-                          width="50"
-                          height="50"
-                          style={{ objectFit: "cover" }}
-                        ></img>
-                      </td>
-                      <td>{song.title}</td>
-                      <td>{song.artist?.name || "Unknown Artist"}</td>
-                      <td>{song.album?.title || "Unknown Album"}</td>
-                      <td>{dayjs(song.create_dt).format("DD/MM/YYYY")}</td>
-                      <td>
-                        {/* {song.steam} */}
-
-                        <Button
-                          color="primary"
-                          onClick={() => handleStreamClick(song.steam)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <FaPlay size={16} />
-                        </Button>
-                      </td>
-
-                      <td>
-                        <Button
-                          color="danger"
-                          onClick={() =>
-                            removeFromPlaylist(playlist._id, song.id)
-                          }
-                        >
-                          <BsFillTrashFill size={16} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          ))
+          <Table striped bordered hover responsive>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "center", verticalAlign: "middle" }}>
+                  #
+                </th>
+                <th
+                  style={{
+                    textAlign: "center",
+                    verticalAlign: "middle",
+                    width: "750px",
+                  }}
+                >
+                  Name
+                </th>
+                <th style={{ textAlign: "center", verticalAlign: "middle" }}>
+                  Songs
+                </th>
+                <th
+                  style={{
+                    textAlign: "center",
+                    verticalAlign: "middle",
+                    width: "300px",
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {playlists.map((playlist, index) => (
+                <tr key={playlist._id}>
+                  <td style={{ textAlign: "center", verticalAlign: "middle" }}>
+                    {index + 1}
+                  </td>
+                  <td style={{ textAlign: "center", verticalAlign: "middle" }}>
+                    {playlist.name}
+                  </td>
+                  <td style={{ textAlign: "center", verticalAlign: "middle" }}>
+                    {playlist.songs.length}
+                  </td>
+                  <td style={{ textAlign: "center", verticalAlign: "middle" }}>
+                    <ButtonGroup>
+                      <Link href={`/playlists/${playlist._id}`} passHref>
+                        <Button color="info">Go to Playlist</Button>
+                      </Link>
+                      <Button
+                        color="danger"
+                        onClick={() => {
+                          deletePlaylist(playlist._id);
+                        }}
+                      >
+                        delete
+                      </Button>
+                    </ButtonGroup>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         )}
       </div>
-
-      <Modal isOpen={isModalGetSongOpen} toggle={toggleModal}>
-        <ModalHeader toggle={toggleModal}>Search for Songs</ModalHeader>
-        <ModalBody>
-          <Input
-            type="text"
-            placeholder="Enter song or artist name"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Button color="success" className="mt-2" onClick={searchSongs}>
-            Search
-          </Button>
-
-          <ListGroup className="mt-3">
-            {songs.map((song) => (
-              <ListGroupItem
-                key={song.id} // Use the correct key here
-                className="d-flex justify-content-between"
-              >
-                <div>
-                  <strong>{song.title}</strong> by {song.artist.name} (Album:{" "}
-                  {song.album.title})
-                </div>
-                <Button
-                  color="info"
-                  size="sm"
-                  onClick={() => addToPlaylist(song)}
-                >
-                  Add
-                </Button>
-              </ListGroupItem>
-            ))}
-          </ListGroup>
-        </ModalBody>
-        <ModalFooter>
-          <Button color="secondary" onClick={toggleModal}>
-            Close
-          </Button>
-        </ModalFooter>
-      </Modal>
 
       <Modal isOpen={isModalAddPlaylistOpen} toggle={toggleAddPlaylistModal}>
         <ModalHeader toggle={toggleAddPlaylistModal}>Add Playlist</ModalHeader>

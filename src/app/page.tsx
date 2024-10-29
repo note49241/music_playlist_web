@@ -112,7 +112,11 @@ export default function Home() {
         <h1 style={{ textAlign: "center" }}>
           Music Playlists <BsMusicNoteList />
         </h1>
-        <Button color="primary" className="mb-3">
+        <Button
+          color="primary"
+          className="mb-3"
+          onClick={() => setIsModalAddPlaylistOpen(true)}
+        >
           Add Playlist
         </Button>
         {playlists.length === 0 ? (

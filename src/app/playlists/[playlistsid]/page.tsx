@@ -2,7 +2,17 @@
 import dayjs from "dayjs";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Table, Button } from "reactstrap";
+import {
+  Table,
+  Button,
+  Input,
+  ListGroup,
+  ListGroupItem,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "reactstrap";
 import { FaPlay } from "react-icons/fa";
 import { BsFillTrashFill } from "react-icons/bs";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -27,7 +37,15 @@ export default function PlaylistPage() {
   const router = useParams(); // UseParams directly
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(
+    null
+  );
+  const [query, setQuery] = useState("");
+  const [isModalGetSongOpen, setIsModalGetSongOpen] = useState<boolean>(false);
   const playlistId = router.playlistsid;
+
+  const toggleModal = () => setIsModalGetSongOpen(!isModalGetSongOpen);
 
   const fetchPlaylist = async () => {
     console.log(playlistId);
@@ -42,6 +60,62 @@ export default function PlaylistPage() {
       console.error("Error fetching playlist:", error);
     } finally {
       setLoading(false);
+    }
+  };
+  const searchSongs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/songs/search?q=${query}`
+      );
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setSongs(data);
+      } else if (data && Array.isArray(data.data)) {
+        setSongs(data.data);
+      } else {
+        setSongs([]);
+      }
+    } catch (error) {
+      console.error("Error fetching songs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const addToPlaylist = async (song: Song) => {
+    if (selectedPlaylist) {
+      const updatedPlaylist = {
+        id: song.id,
+        title: song.title,
+        img: song.album.cover_medium,
+        artist: {
+          id: song.artist.id,
+          name: song.artist.name,
+        },
+        album: {
+          id: song.album.id,
+          title: song.album.title,
+        },
+        steam: song.link,
+        create_dt: new Date(),
+      };
+
+      try {
+        await fetch(
+          `http://localhost:3001/playlists/${selectedPlaylist._id}/add-song`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updatedPlaylist),
+          }
+        );
+        fetchPlaylist();
+        toggleModal(); // Close the modal after adding
+      } catch (error) {
+        console.error("Error updating playlist:", error);
+      }
     }
   };
 
@@ -72,6 +146,15 @@ export default function PlaylistPage() {
   return (
     <div style={{ padding: "20px" }}>
       <h1>{playlist.name}</h1>
+      <Button
+        onClick={() => {
+          setSelectedPlaylist(playlist);
+          toggleModal();
+        }}
+        color="info"
+      >
+        Search Songs
+      </Button>
       <Table striped responsive>
         <thead>
           <tr>
@@ -125,6 +208,46 @@ export default function PlaylistPage() {
           ))}
         </tbody>
       </Table>
+      <Modal isOpen={isModalGetSongOpen} toggle={toggleModal}>
+        <ModalHeader toggle={toggleModal}>Search for Songs</ModalHeader>
+        <ModalBody>
+          <Input
+            type="text"
+            placeholder="Enter song or artist name"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Button color="success" className="mt-2" onClick={searchSongs}>
+            Search
+          </Button>
+
+          <ListGroup className="mt-3">
+            {songs.map((song) => (
+              <ListGroupItem
+                key={song.id} // Use the correct key here
+                className="d-flex justify-content-between"
+              >
+                <div>
+                  <strong>{song.title}</strong> by {song.artist.name} (Album:{" "}
+                  {song.album.title})
+                </div>
+                <Button
+                  color="info"
+                  size="sm"
+                  onClick={() => addToPlaylist(song)}
+                >
+                  Add
+                </Button>
+              </ListGroupItem>
+            ))}
+          </ListGroup>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={toggleModal}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
